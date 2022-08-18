@@ -1,23 +1,26 @@
 package com.betterdamagecounter;
 
+import com.betterdamagecounter.objects.DamagedNpc;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.*;
+import net.runelite.api.events.HitsplatApplied;
+import net.runelite.api.events.NpcDespawned;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
+import java.util.Map;
+
 @Slf4j
 @PluginDescriptor(
-	name = "Example"
+	name = "Better Damage Counter"
 )
 public class BetterDamageCounterPlugin extends Plugin
 {
+	private Map<Integer, DamagedNpc> damagedNpcMap; // k- name, v-DamagedNpc
 	@Inject
 	private Client client;
 
@@ -27,22 +30,48 @@ public class BetterDamageCounterPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		log.info("Example started!");
+		log.info("Better Damage Counter started!");
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-		log.info("Example stopped!");
+		log.info("Better Damage Counter stopped!");
 	}
 
 	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
-		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Example says " + config.greeting(), null);
+	public void onHitsplatApplied(HitsplatApplied hitsplatApplied){
+		Player curPlayer = client.getLocalPlayer();
+		Actor actor = hitsplatApplied.getActor();
+		Hitsplat hitsplat = hitsplatApplied.getHitsplat();
+
+		if(hitsplat.isMine()){ //TODO do we need special logic for Vengeance or recoils?
+			int damage = hitsplat.getAmount();
+			NPC npc = ((NPC) actor);
+			if(damagedNpcMap.containsKey(npc.getName())) {
+				//we have already damaged this character
+				damagedNpcMap.get(npc.getName()).addDamage(damage);
+			}else {
+				DamagedNpc damagedNpc = new DamagedNpc(npc.getName(), damage, npc.getId(), 0);
+				damagedNpcMap.put(npc.getId(), damagedNpc);
+			}
+			String chatMessage = String.format("You did damage! You dealt %d to %s! way to go!", damage, npc.getName());
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", chatMessage, null);
 		}
+	}
+
+	@Subscribe
+	public void onNpcDespawned(NpcDespawned npcDespawned) { //TODO: what should the behaviour be if we tele out?
+		NPC npc = npcDespawned.getNpc();
+
+		if(npc.isDead() && damagedNpcMap.containsKey(npc.getId())){
+			//TODO multi phase bosses may be registered as dead when they move, like Zulrah. Also may need some Olm logics
+			String chatMessage = String.format("You KILLED %s BROTHER!!! You did a total of %d damage", npc.getName());
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", chatMessage, null);
+
+			damagedNpcMap.remove(npc.getId());
+		}
+
 	}
 
 	@Provides
@@ -50,4 +79,6 @@ public class BetterDamageCounterPlugin extends Plugin
 	{
 		return configManager.getConfig(BetterDamageCounterConfig.class);
 	}
+
+
 }
