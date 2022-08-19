@@ -20,12 +20,15 @@ import java.util.Map;
 )
 public class BetterDamageCounterPlugin extends Plugin
 {
-	private Map<Integer, DamagedNpc> damagedNpcMap; // k- name, v-DamagedNpc
+
 	@Inject
 	private Client client;
 
 	@Inject
 	private BetterDamageCounterConfig config;
+
+	@Inject
+	private DamageCollectorService damageCollectorService;
 
 	@Override
 	protected void startUp() throws Exception
@@ -48,12 +51,13 @@ public class BetterDamageCounterPlugin extends Plugin
 		if(hitsplat.isMine()){ //TODO do we need special logic for Vengeance or recoils?
 			int damage = hitsplat.getAmount();
 			NPC npc = ((NPC) actor);
-			if(damagedNpcMap.containsKey(npc.getName())) {
+			//TODO: should all this logic be placed into the service?
+			if(damageCollectorService.isDamagedNpcInMap(npc.getId())) {
 				//we have already damaged this character
-				damagedNpcMap.get(npc.getName()).addDamage(damage);
+				damageCollectorService.addDamage(npc.getId(), damage);
 			}else {
 				DamagedNpc damagedNpc = new DamagedNpc(npc.getName(), damage, npc.getId(), 0);
-				damagedNpcMap.put(npc.getId(), damagedNpc);
+				damageCollectorService.addDamagedNpc(npc.getId(), damagedNpc);
 			}
 			String chatMessage = String.format("You did damage! You dealt %d to %s! way to go!", damage, npc.getName());
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", chatMessage, null);
@@ -64,12 +68,12 @@ public class BetterDamageCounterPlugin extends Plugin
 	public void onNpcDespawned(NpcDespawned npcDespawned) { //TODO: what should the behaviour be if we tele out?
 		NPC npc = npcDespawned.getNpc();
 
-		if(npc.isDead() && damagedNpcMap.containsKey(npc.getId())){
+		if(npc.isDead() && damageCollectorService.isDamagedNpcInMap(npc.getId())){
 			//TODO multi phase bosses may be registered as dead when they move, like Zulrah. Also may need some Olm logics
 			String chatMessage = String.format("You KILLED %s BROTHER!!! You did a total of %d damage", npc.getName());
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", chatMessage, null);
 
-			damagedNpcMap.remove(npc.getId());
+			damageCollectorService.removeDamagedNpc(npc.getId());
 		}
 
 	}
