@@ -3,36 +3,83 @@ package com.betterdamagecounter;
 import com.betterdamagecounter.objects.DamagedNpc;
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.plugins.Plugin;
+import net.runelite.client.task.Schedule;
 
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The collector will handle all the damage done calculations and collections in it's own terms, then serve it
  * out to the different components that need it. It will also do all the JSON writing for saving the data to
  * a local folder
  */
+@Slf4j
 public class DamageCollectorService extends Plugin { //TODO: probably shouldn't be a plugin?
 
-    private Map<Integer, DamagedNpc> damagedNpcMap; // k-id, v-DamagedNpc
+    @Inject
+    private EventBus eventBus;
+
+    @Inject
+    private BetterDamageCounterClient client;
+
+    private List<DamagedNpc> damagedNpcList = new ArrayList<>();
+    private List<Integer> currentAttackedIds = new ArrayList<>(;
 
     public void addDamagedNpc(DamagedNpc damagedNpc){
-        damagedNpcMap.put(damagedNpc.getUniqueNpcId(), damagedNpc);
+        synchronized (damagedNpcList){
+            if(currentAttackedIds.contains(damagedNpc.getUniqueNpcId())){
+                for(DamagedNpc npc : damagedNpcList){
+                    if(npc.getUniqueNpcId().equals(damagedNpc.getUniqueNpcId())){
+                        npc.addDamage(damagedNpc.getDamageDone());
+                    }
+                }
+            } else{
+                currentAttackedIds.add(damagedNpc.getUniqueNpcId());
+                damagedNpcList.add(damagedNpc);
+            }
+        }
+        eventBus.post(damagedNpc);
     }
 
-    public DamagedNpc getDamagedNpc(Integer npcId){
-        return damagedNpcMap.get(npcId);
+    public Boolean isInAttackedList(Integer id){
+        return currentAttackedIds.contains(id);
     }
 
-    public boolean isDamagedNpcInMap(Integer npcId){
-        return damagedNpcMap.containsKey(npcId);
+    public void removeUniqueId(Integer id){ //TODO: Need to make some tests for this one to ensure the id != position in list
+        currentAttackedIds.remove(id);
+        //TODO: should also do the writes when an NPC dies
     }
 
-    public void addDamage(Integer npcId, Integer damage){
-        damagedNpcMap.get(npcId).addDamage(damage);
+    @Schedule(
+            period = 5,
+            unit = ChronoUnit.MINUTES,
+            asynchronous = true
+    )
+    public void submitDamage()
+    {
+        submitDamageToClient();
     }
 
-    public void removeDamagedNpc(Integer npcId){
-        damagedNpcMap.remove(npcId);
+    @Nullable
+    private CompletableFuture<Void> submitDamageToClient(){
+        List<DamagedNpc> copy;
+        synchronized (damagedNpcList){
+            if(damagedNpcList.isEmpty()){
+                return null;
+            }
+            copy = new ArrayList<>(damagedNpcList);
+            damagedNpcList.clear();
+        }
+        log.debug("Returning from the submit damage");
+        return client.submit(copy);
     }
 }
