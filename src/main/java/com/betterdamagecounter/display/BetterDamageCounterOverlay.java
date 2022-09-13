@@ -37,6 +37,6 @@ public class BetterDamageCounterOverlay extends OverlayPanel {
     public Dimension render(Graphics2D graphics)
     {
 
-        super.render(graphics);
+        return super.render(graphics);
     }
 }

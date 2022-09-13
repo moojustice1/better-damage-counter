@@ -10,17 +10,19 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.annotation.Nullable;
-import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 @Singleton
 public class BetterDamageCounterPanel extends PluginPanel {
 
     private JPanel damageContainer;
+    private List<DamagedNpcBox> boxes = new ArrayList<DamagedNpcBox>();
 
     private Client client;
 
@@ -74,6 +76,14 @@ public class BetterDamageCounterPanel extends PluginPanel {
      */
     public void addNpc(DamagedNpc npc){
 
+    }
+
+    public void buildDamagedNpcBox(DamagedNpc npc){
+        for(DamagedNpcBox box : boxes){
+            if(box.matchesNpcRecord(npc.getUniqueNpcId())){
+
+            }
+        }
     }
 
 }

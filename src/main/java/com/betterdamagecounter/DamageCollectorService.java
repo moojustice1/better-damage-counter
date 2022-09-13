@@ -1,8 +1,7 @@
 package com.betterdamagecounter;
 
+import com.betterdamagecounter.display.BetterDamageCounterPanel;
 import com.betterdamagecounter.objects.DamagedNpc;
-import com.google.inject.Binder;
-import com.google.inject.Module;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.plugins.Plugin;
@@ -10,11 +9,10 @@ import net.runelite.client.task.Schedule;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.swing.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -32,20 +30,21 @@ public class DamageCollectorService extends Plugin { //TODO: probably shouldn't 
     private BetterDamageCounterClient client;
 
     private List<DamagedNpc> damagedNpcList = new ArrayList<>();
-    private List<Integer> currentAttackedIds = new ArrayList<>(;
+    private List<Integer> currentAttackedIds = new ArrayList<>();
 
-    public void addDamagedNpc(DamagedNpc damagedNpc){
+    public void addDamagedNpc(DamagedNpc damagedNpc, BetterDamageCounterPanel panel){
         synchronized (damagedNpcList){
-            if(currentAttackedIds.contains(damagedNpc.getUniqueNpcId())){
+            if(currentAttackedIds.contains(damagedNpc.getUniqueNpcId())) {
                 for(DamagedNpc npc : damagedNpcList){
                     if(npc.getUniqueNpcId().equals(damagedNpc.getUniqueNpcId())){
                         npc.addDamage(damagedNpc.getDamageDone());
                     }
                 }
-            } else{
+            } else {
                 currentAttackedIds.add(damagedNpc.getUniqueNpcId());
                 damagedNpcList.add(damagedNpc);
             }
+            SwingUtilities.invokeLater(() -> panel.addNpc(damagedNpc));
         }
         eventBus.post(damagedNpc);
     }

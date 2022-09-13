@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.http.api.RuneLiteAPI;
-import net.runelite.http.api.loottracker.LootAggregate;
 import okhttp3.*;
 
 import javax.inject.Inject;

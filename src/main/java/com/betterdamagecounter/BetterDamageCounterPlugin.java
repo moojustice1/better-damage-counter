@@ -3,22 +3,17 @@ package com.betterdamagecounter;
 import com.betterdamagecounter.display.BetterDamageCounterPanel;
 import com.betterdamagecounter.objects.DamagedNpc;
 import com.google.inject.Provides;
-
-import javax.annotation.Nullable;
-import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.HitsplatApplied;
 import net.runelite.api.events.NpcDespawned;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.task.Schedule;
 
-import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import javax.inject.Inject;
 
 @Slf4j
 @PluginDescriptor(
@@ -32,6 +27,8 @@ public class BetterDamageCounterPlugin extends Plugin
 
 	@Inject
 	private BetterDamageCounterConfig config;
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private DamageCollectorService damageCollectorService;
@@ -60,7 +57,8 @@ public class BetterDamageCounterPlugin extends Plugin
 			int damage = hitsplat.getAmount();
 			NPC npc = ((NPC) actor);
 			//TODO: should all this logic be placed into the service?
-			damageCollectorService.addDamagedNpc(new DamagedNpc(npc.getName(), damage, npc.getId(), 0));
+			damageCollectorService.addDamagedNpc(new DamagedNpc(npc.getName(), damage,
+					npc.getId(), 0), betterDamageCounterPanel);
 			String chatMessage = String.format("You did damage! You dealt %d to %s! way to go!", damage, npc.getName());
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", chatMessage, null);
 		}
